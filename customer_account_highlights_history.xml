@@ -1,1 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<j:jelly trim="false"
+    xmlns:j="jelly:core"
+    xmlns:g="glide"
+    xmlns:j2="null"
+    xmlns:g2="null">
 
+    <g:evaluate var="jvar_audit" object="true" jelly="true">
+        var audit = new GlideRecord('sys_audit');
+        audit.addQuery('tablename', current.getTableName());
+        audit.addQuery('documentkey', current.getUniqueValue());
+
+        var fields = audit.addQuery('fieldname', 'u_customer_note');
+        fields.addOrCondition('fieldname', 'u_customer_comment');
+
+        audit.orderByDesc('sys_created_on');
+        audit.query();
+        audit;
+    </g:evaluate>
+
+    <tr>
+        <td colspan="2">
+            <div style="padding: 10px;">
+                <h4>Field history</h4>
+
+                <table class="table table-striped" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>User</th>
+                            <th>Field</th>
+                            <th>Old value</th>
+                            <th>New value</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <j:while test="${jvar_audit.next()}">
+                            <tr>
+                                <td>${jvar_audit.sys_created_on}</td>
+                                <td>${jvar_audit.user}</td>
+                                <td>${jvar_audit.fieldname}</td>
+                                <td>${jvar_audit.oldvalue}</td>
+                                <td>${jvar_audit.newvalue}</td>
+                            </tr>
+                        </j:while>
+                    </tbody>
+                </table>
+            </div>
+        </td>
+    </tr>
+</j:jelly>
