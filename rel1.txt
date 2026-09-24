@@ -1,5 +1,5 @@
 (function refineQuery(current, parent) {
     current.addQuery('documentkey', parent.getUniqueValue());
-    current.addQuery('fieldname', 'IN', 'u_highlights,u_highlights_explination');
+    current.addQuery('fieldname', 'IN', 'u_highlights,u_highlits_explination');
     current.orderByDesc('sys_created_on');
 })(current, parent);
