@@ -3,3 +3,7 @@
     current.addQuery('fieldname', 'IN', 'u_highlights,u_highlits_explination');
     current.orderByDesc('sys_created_on');
 })(current, parent);
+
+/*
+Hi. I just talked with Anna. We checked the lead table. There have not 'term_monhts' field and so that can not be copied into opportunity (how asked us in story) . And the next question is do we need to add/create this new field in leads table or how to proceed? This mind that i must change lead table and lead view also other than opportynity
+*/
