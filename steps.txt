@@ -1,0 +1,119 @@
+Complete the story in the ServiceNow instance by sending one email when the order status becomes **abgeschlossen**, using the text in `template.txt`, and making that same message visible on the order in the portal.
+
+## 1. Map the template to order fields
+
+Before you build the notification, write down the real field names on the order table. The template uses these placeholders:
+
+| Template placeholder | Meaning |
+|---|---|
+| Order-ID / Order-Nr. | Order number |
+| Titel der Anfrage | Order title |
+| Kundenreferenznummer | Customer reference |
+| Name Ordermanager | Responsible order manager |
+| E-Mail-Adresse Ordermanager | Order manager email |
+| kaufmännischer Ansprechpartner | Commercial contact |
+| fachlicher Ansprechpartner | Functional contact |
+| technischer Ansprechpartner | Technical contact |
+
+The template line `technischer Ansprechpartnere` is a typo. Use the technical contact field.
+
+Confirm each contact field is a user reference (`sys_user`) or a plain email. That decides how you set the recipients in step 4.
+
+## 2. Create the email notification
+
+Go to **System Notification > Email > Notifications** and create a new record.
+
+- **Name:** Notification an Kunden nach Order-Abschluss
+- **Table:** the order table
+- **Active:** true
+- **Send when:** Record inserted or updated
+- **Updated:** checked
+- **Inserted:** unchecked, unless a new order can be created already in status abgeschlossen
+- **Conditions:** order status **is** `abgeschlossen`
+- **Advanced condition** (so it sends only on the change, not on every later update):
+
+```javascript
+current.state.changesTo('abgeschlossen');
+```
+
+Use the real status field and choice value if they are not `state` and `abgeschlossen`.
+
+## 3. Set the subject and body from the template
+
+**Subject:**
+
+```text
+Order: ${number} Order-Bezeichnung: ${short_description} (Kundenreferenz: [${u_customer_reference}]) ist final abgeschlossen
+```
+
+**Body:**
+
+```text
+Sehr geehrte Damen und Herren,
+die von Ihnen beauftragte Order ${number} „${short_description}“ (Kundenreferenz: ${u_customer_reference}) wurde bei FI-TS final abgeschlossen.
+Bei Rückfragen können Sie sich an den verantwortlichen Ordermanager ${assigned_to.name} (${assigned_to.email}) wenden.
+
+Freundliche Grüße
+
+FI-TS Ordermanagement
+```
+
+Replace `${number}`, `${short_description}`, `${u_customer_reference}`, and `${assigned_to}` with the fields you mapped in step 1. If Order-ID and Order-Nr. are different fields, use each one in the place the template shows.
+
+Keep the company footer from `template.txt` (address, registers, managing directors). If FI-TS already has a standard email layout, put only the greeting and the two sentences in the notification and leave the footer to that layout.
+
+## 4. Set the recipients
+
+On the notification, open **Who will receive**.
+
+- If the three contacts are user references, add those three fields under **Users/Groups in fields**.
+- If they are email strings, add them with a mail script in **Advanced**:
+
+```javascript
+(function runMailScript(current, template, email, email_action, event) {
+    var fields = [
+        'u_commercial_contact',
+        'u_functional_contact',
+        'u_technical_contact'
+    ];
+    var seen = {};
+    for (var i = 0; i < fields.length; i++) {
+        var addr = (current.getValue(fields[i]) || '').trim();
+        if (addr && !seen[addr.toLowerCase()]) {
+            seen[addr.toLowerCase()] = true;
+            email.addAddress('to', addr);
+        }
+    }
+})(current, template, email, email_action, event);
+```
+
+Replace the three field names with the real ones. Do not also put the same addresses in **Users**, or people receive the mail twice.
+
+Leave **Send to event creator** unchecked if the order manager who sets the status should not get a copy unless they are one of the three contacts.
+
+## 5. Make it visible on the order in the portal
+
+The email alone is not enough. The story also requires the message on the order in the portal.
+
+Use the option that matches how this portal already shows order communication:
+
+1. **Activity / emails already shown on the order page.** Associate the email with the order (the notification table is the order table, so ServiceNow does this). Confirm the portal order page includes the email or activity formatter and that a portal user can see it.
+2. **Portal shows comments, not emails.** Add a business rule on the order table, after update, same condition `current.state.changesTo('abgeschlossen')`, and write the same text into a customer-visible comment or work note that the portal activity stream shows.
+
+Use one of those two. Do not send a second email from the business rule.
+
+## 6. Test
+
+1. Open an order that is not abgeschlossen and has all three contacts filled in.
+2. As an order manager, set the status to **abgeschlossen**.
+3. Check **System Mailboxes > Outbound > Outbox** (or Email log): one email, subject and body match `template.txt`, all three recipients are in **To**.
+4. Save the order again without changing the status. No second email.
+5. Clear one contact and repeat with another order. The mail goes only to the contacts that have an address.
+6. Open that order in the portal as a customer and confirm the notification text is visible there.
+
+## 7. Close the story when all of these are true
+
+- Status change to **abgeschlossen** sends the notification once.
+- Recipients are the commercial, functional, and technical contacts from the template.
+- Subject and body match `template.txt`, including order number, title, customer reference, and order manager name and email.
+- The same notification is visible on the order in the portal.
