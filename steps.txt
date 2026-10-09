@@ -136,25 +136,26 @@ Create a business rule on the order table:
 ```javascript
 
 (function executeRule(current, previous) {
-    if (!current.state.changesTo('abgeschlossen')) {
+    if (!current.state.changesTo('completed')) {
         return;
     }
 
     var orderNo = current.getDisplayValue('number');
     var title = current.getDisplayValue('short_description');
-    var reference = current.getDisplayValue('u_customer_reference');
-    var managerName = current.getDisplayValue('assigned_to');
-    var managerEmail = current.assigned_to.nil() ? '' : current.assigned_to.email.getDisplayValue();
+    var reference = '';
+    var managerName = current.getDisplayValue('u_assigned_to');
+    var managerEmail = current.u_assigned_to.nil() ? '' : current.u_assigned_to.email.getDisplayValue();
 
-    current.comments =
+    current.work_notes = 
         'Sehr geehrte Damen und Herren,\n' +
         'die von Ihnen beauftragte Order ' + orderNo + ' „' + title +
-        '“ (Kundenreferenz: ' + reference + ') wurde bei FI-TS final abgeschlossen.\n' +
+        '" (Kundenreferenz: ' + reference + ') wurde bei FI-TS final abgeschlossen.\n' +
         'Bei Rückfragen können Sie sich an den verantwortlichen Ordermanager ' +
         managerName + ' (' + managerEmail + ') wenden.\n\n' +
         'Freundliche Grüße\n\n' +
         'FI-TS Ordermanagement';
 })(current, previous);
+
 
 ```
 
