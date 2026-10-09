@@ -117,3 +117,65 @@ Use one of those two. Do not send a second email from the business rule.
 - Recipients are the commercial, functional, and technical contacts from the template.
 - Subject and body match `template.txt`, including order number, title, customer reference, and order manager name and email.
 - The same notification is visible on the order in the portal.
+
+
+
+######################## ACTIVITY ################################
+
+The portal shows the order **Activity** stream, so the customer-facing text has to be written to **Additional comments** (`comments`) on the same update that sets the status to **abgeschlossen**. That entry is what the customer sees on the order. The email is a separate send to the three contacts.
+
+## Business rule
+
+Create a business rule on the order table:
+
+- **When:** before
+- **Update:** checked
+- **Filter:** order status **is** `abgeschlossen`
+- **Advanced:** checked
+
+```javascript
+
+(function executeRule(current, previous) {
+    if (!current.state.changesTo('abgeschlossen')) {
+        return;
+    }
+
+    var orderNo = current.getDisplayValue('number');
+    var title = current.getDisplayValue('short_description');
+    var reference = current.getDisplayValue('u_customer_reference');
+    var managerName = current.getDisplayValue('assigned_to');
+    var managerEmail = current.assigned_to.nil() ? '' : current.assigned_to.email.getDisplayValue();
+
+    current.comments =
+        'Sehr geehrte Damen und Herren,\n' +
+        'die von Ihnen beauftragte Order ' + orderNo + ' „' + title +
+        '“ (Kundenreferenz: ' + reference + ') wurde bei FI-TS final abgeschlossen.\n' +
+        'Bei Rückfragen können Sie sich an den verantwortlichen Ordermanager ' +
+        managerName + ' (' + managerEmail + ') wenden.\n\n' +
+        'Freundliche Grüße\n\n' +
+        'FI-TS Ordermanagement';
+})(current, previous);
+
+```
+
+Replace `state`, `number`, `short_description`, `u_customer_reference`, and `assigned_to` with the real order fields. Use `comments`, not `work_notes`. Work notes stay internal and do not show to the customer in the portal activity.
+
+Run this **before** update so the comment is stored with the status change. An after-update rule that calls `update()` again can post the comment a second time.
+
+## Email
+
+Keep the email notification from the previous step. It still sends on the status change to the commercial, functional, and technical contacts, with the subject and the legal footer from `template.txt`.
+
+The activity entry is the message body only: greeting, order number, title, customer reference, order manager name and email, and the FI-TS Ordermanagement sign-off. The company register block stays in the email footer.
+
+## Check the portal activity filter
+
+On the portal order page, the activity formatter must include **Additional comments**. If that filter is missing, the comment is saved on the order and still stays hidden in the portal.
+
+## Test
+
+1. Set an order to **abgeschlossen**.
+2. On the order, Activity shows one customer-visible comment with the template text.
+3. The outbound email goes once to the three contacts.
+4. Save the order again without a new status change. Activity does not get a second comment, and no second email is sent.
+5. Open the same order in the portal as a customer and confirm that comment is visible.
